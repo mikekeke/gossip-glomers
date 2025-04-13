@@ -1,11 +1,12 @@
 module Node (
-  spawnNode,
+    spawnNode,
+    ReqHandler,
 ) where
 
 import Control.Concurrent (threadDelay)
 import Control.Monad (forever)
-import Data.Aeson (eitherDecode)
-import Data.ByteString.Lazy qualified as C8
+import Data.Aeson (FromJSON, ToJSON, Value (String), eitherDecode, eitherDecode', encode)
+import Data.ByteString.Lazy.Char8 qualified as C8
 import Data.Text (Text)
 import Data.Void (Void)
 import GHC.Exts (fromString)
@@ -13,57 +14,74 @@ import Message (InitRequest, InitResponse, Message, MessageId, getInitId, mkInit
 import System.IO (hFlush, hPutStrLn, stderr, stdout)
 
 data Node = Node
-  { nodeId :: Text
-  }
+    { nodeId :: Text
+    }
 
-spawnNode :: IO Node
-spawnNode = do
-  logN "## Starting node"
-  initReq <- awaitInitMessage
+type ReqHandler req resp = req -> resp
 
-  logN $ "## Init msg: " <> show initReq
-  let msgIdSeed = 1
+spawnNode :: (FromJSON req, ToJSON resp) => ReqHandler req resp -> IO Node
+spawnNode hlr = do
+    logN "## Starting node"
+    initReq <- awaitInitMessage
 
-  getNextId <- mkIdGen msgIdSeed
+    logN $ "## Init msg: " <> show initReq
+    let msgIdSeed = 1
 
-  respondInitOk (mkInitResponse initReq msgIdSeed)
+    getNextId <- mkIdGen msgIdSeed
 
-  let node = Node (getInitId initReq)
+    respondInitOk (mkInitResponse initReq msgIdSeed)
 
-  spawnMainLoop
+    let node = Node (getInitId initReq)
 
-  pure node
+    spawnMainLoop hlr -- TODO: async process, add Async to node, add node kill
+    pure node
 
 mkIdGen :: Integer -> IO (IO MessageId)
 mkIdGen seed = pure (pure 123) -- TODO
 
 awaitInitMessage :: IO (Message InitRequest)
 awaitInitMessage = do
-  m <- fromString <$> getLine
-  logN $ "## Raw Init: " <> show m
+    m <- receiveMessage
+    logN $ "## Raw Init: " <> show m
 
-  case eitherDecode m of
-    Left _err -> error "Parse err" -- <> LBS.pack  err
-    Right m' -> do
-      pure m'
+    case eitherDecode m of
+        Left _err -> error "Parse err" -- <> LBS.pack  err
+        Right m' -> do
+            pure m'
 
 respondInitOk :: Message InitResponse -> IO ()
 respondInitOk m = do
-  logN $ "## Repl Init: " <> msgToString m
-  sendMessage (msgToString m)
-  logN $ "## Repl Init done"
+    logN $ "## Repl Init: " <> msgToString m
+    sendMessage (encode m)
+    logN $ "## Repl Init done"
 
-sendMessage :: String -> IO ()
+-- receiveMessage :: IO String
+receiveMessage :: IO C8.ByteString
+receiveMessage = fromString <$> getLine
+
+sendMessage :: C8.ByteString -> IO ()
 sendMessage msg = do
-  putStrLn msg >> hFlush stdout
+    let msg' = C8.unpack msg
+    putStrLn msg' >> hFlush stdout
 
--- let reader = getLine
---     writer msg = hPutStrLn stderr msg >> hFlush stderr
--- startNode reader writer
+spawnMainLoop ::
+    forall req resp. (FromJSON req, ToJSON resp) => ReqHandler req resp -> IO Void
+spawnMainLoop hlr =
+    -- TODO: each message handled async?
+    forever $ do
+        rawRequest <- receiveMessage
 
-spawnMainLoop :: IO Void
-spawnMainLoop =
-  forever $ threadDelay 1_000_000
+        logNB $ "## Raw request: " <> rawRequest
+
+        case eitherDecode' rawRequest :: Either String req of
+            Left e -> error e
+            Right r -> do
+                let resp = encode $ hlr r
+                logNB $ "## Sending: " <> resp
+                sendMessage resp
 
 logN :: String -> IO ()
 logN msg = hPutStrLn stderr msg >> hFlush stderr
+
+logNB :: C8.ByteString -> IO ()
+logNB = logN . C8.unpack
