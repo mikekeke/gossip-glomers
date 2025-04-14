@@ -6,6 +6,7 @@ module Message (
     mkInitResponse,
     msgToString,
     MessageId,
+    CommonMsg(..)
 ) where
 
 import Data.Aeson (FromJSON, ToJSON, encode, object, parseJSON, toJSON, withObject, (.:))
@@ -127,10 +128,9 @@ instance ToJSON InitResponse where
 msgToString :: ToJSON a => Message a -> String
 msgToString = C8.unpack . encode
 
--- testMsg :: Message InitResponse
--- testMsg =
---   Message "from" "to" $
---     InitResponse 1 2 "3"
+newtype CommonMsg = CommonMsg {cmMsgId :: Integer}
+    deriving stock (Show)
 
--- testJs :: Either String (Message InitResponse)
--- testJs = eitherDecode $ encode testMsg :: Either String (Message InitResponse)
+instance FromJSON CommonMsg where
+    parseJSON = withObject "CommonMsg" $ \v ->
+        CommonMsg <$> v .: "msg_id"

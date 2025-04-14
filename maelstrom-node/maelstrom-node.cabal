@@ -108,6 +108,7 @@ library
     , base        ^>=4.15.1.0
     , bytestring
     , text
+    , indexed-traversable
 
   -- Directories containing source files.
   hs-source-dirs:   src
