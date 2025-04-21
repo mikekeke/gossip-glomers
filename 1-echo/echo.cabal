@@ -71,6 +71,7 @@ executable echo
   build-depends:
     , base            ^>=4.15.1.0
     , maelstrom-node
+    , aeson
 
   -- Directories containing source files.
   hs-source-dirs:   app

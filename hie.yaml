@@ -4,3 +4,5 @@ cradle:
       component: "maelstrom-node"
     - path: "./1-echo"
       component: "echo"
+    - path: "./sandbox"
+      component: "sandbox"
