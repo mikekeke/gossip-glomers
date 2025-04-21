@@ -4,30 +4,32 @@
 
 module Main where
 
+import Control.Monad (void)
 import Data.Aeson (ToJSON, object, (.=))
 import Data.Aeson.TH
 import Data.Aeson.Types (ToJSON (toJSON))
-import Node qualified
+import Maelstrom qualified
 
 data EchoReq = EchoReq
-  { echo :: String
-  }
+    { echo :: String
+    }
 
 $(deriveJSON defaultOptions ''EchoReq)
 
 data EchoResp = EchoResp String
 
 instance ToJSON EchoResp where
-  toJSON (EchoResp e) =
-    object
-      [ "type" .= ("echo_ok" :: String)
-      , "echo" .= e
-      ]
+    toJSON (EchoResp e) =
+        object
+            [ "type" .= ("echo_ok" :: String)
+            , "echo" .= e
+            ]
 
-nodeHandler :: EchoReq -> EchoResp
-nodeHandler (EchoReq e) = EchoResp e
+echoHandler :: EchoReq -> IO EchoResp
+echoHandler (EchoReq e) = pure $ EchoResp e
 
 main :: IO ()
 main = do
-  _n <- Node.spawnNode nodeHandler
-  pure ()
+    void $
+        Maelstrom.spawnNode (Maelstrom.simpleHandler echoHandler)
+            >>= Maelstrom.waitNode
