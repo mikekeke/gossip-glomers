@@ -1,4 +1,4 @@
-# Revision history for maelstrom-node
+# Revision history for sandbox
 
 ## 0.1.0.0 -- YYYY-mm-dd
 

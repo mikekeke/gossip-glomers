@@ -1,6 +1,6 @@
 cradle:
   cabal:
-    - path: "./maelstrom-node"
-      component: "maelstrom-node"
     - path: "./1-echo"
       component: "echo"
+    - path: "./sandbox"
+      component: "sandbox"

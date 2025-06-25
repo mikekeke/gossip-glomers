@@ -1,1 +1,7 @@
-packages: */*.cabal
+packages: 
+  */*.cabal
+
+source-repository-package
+  type: git
+  location: /home/mike/dev/my/maelstrom-node-haskell
+  tag: 8dfdcfb7b1f3ef18afa3a7bf82756095b7e887da
